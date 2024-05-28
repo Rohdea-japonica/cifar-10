@@ -13,8 +13,8 @@ import torch.nn as nn
 # 以下两个函数已经过检验，图片地址与标签一一对应，并无差错
 def get_dictionary(csv_path):
     content = pd.read_csv(csv_path)
-    breed = content["breed"]
-    kind = list(sorted(set(breed)))
+    label = content["label"]
+    kind = list(sorted(set(label)))
     # 构建标签映射字典
     dictionary = {}
     index = 0
@@ -27,19 +27,19 @@ def get_dictionary(csv_path):
 def getdata(data_path, module):
     if module == "train":
         # 读取训练集文件
-        dict_path = os.path.join(data_path, "labels.csv")
+        dict_path = os.path.join(data_path, "trainLabels.csv")
         img_root = os.path.join(data_path, "train")
         content = pd.read_csv(dict_path)
         image_id = content["id"]
-        breed = content["breed"]
+        label = content["label"]
         # 构建标签映射字典
         dictionary = get_dictionary(dict_path)
         # 设置文件路径和对应的标签
         labels = []
         image_names = []
         for i in range(len(content)):
-            file_path = image_id[i] + ".jpg"
-            labels.append(dictionary[breed[i]])
+            file_path = image_id[i] + ".png"
+            labels.append(dictionary[label[i]])
             image_names.append(os.path.join(img_root, file_path))
         random.seed(2)
         random.shuffle(image_names)
@@ -135,23 +135,24 @@ if __name__ == "__main__":
             correct = 0
             for x in test_loader:
                 pred = model(x.to(device))
-                pred = nn.functional.softmax(pred)
-                labels += pred.tolist()
+                labels += pred.argmax(1).tolist()
         image_names = []
         for root, sub_folder, file_list in os.walk("./data/test"):
             image_names += [file_path for file_path in file_list]
+        # 构建反映射表
         dictionary = get_dictionary("./data/labels.csv")
-        dict_key = list(dictionary.keys())
-        # 循环进入所有的标签概率列表
-        num = 0
-        for label in labels:
-            # 每个列表的前面加上图片名
-            para = {"id": image_names[num]}
-            for idx in range(len(label)):
-                para[dict_key[idx]] = label[idx]
-            df = pd.DataFrame([para])
-            num += 1
-            if num == 0:
-                df.to_csv("test_dict.csv", mode='a', header=True)
-            else:
-                df.to_csv("test_dict.csv", mode='a', header=False)
+        dict_key = dictionary.keys()
+        opposite_dict = {}
+        idx = 0
+        for i in dict_key:
+            opposite_dict[idx] = i
+            idx += 1
+        # 对输出的标签进行反映射
+        final_label = []
+        for i in labels:
+            final_label.append(opposite_dict[i])
+        # 将id和final_label写入到csv文件中
+        df = pd.DataFrame({"id": image_names,
+                           "label": final_label}
+                          )
+        df.to_csv("testLabels.csv", mode='a', header=True)

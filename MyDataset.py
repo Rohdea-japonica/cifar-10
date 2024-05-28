@@ -27,8 +27,7 @@ class MyDataset(Dataset):
             # ImageNet推荐的RGB通道均值、方差
             mean = [0.485, 0.456, 0.406]
             std = [0.229, 0.224, 0.225]
-            tf = transforms.Compose([transforms.ToTensor(), transforms.Resize((200, 200), antialias=True),
-                                     transforms.Normalize(mean=mean, std=std)])
+            tf = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=mean, std=std)])
             img = tf(img)
             label = torch.tensor(label)
             return img, label
@@ -38,7 +37,6 @@ class MyDataset(Dataset):
             # ImageNet推荐的RGB通道均值、方差
             mean = [0.485, 0.456, 0.406]
             std = [0.229, 0.224, 0.225]
-            tf = transforms.Compose([transforms.ToTensor(), transforms.Resize((224, 224), antialias=True),
-                                     transforms.Normalize(mean=mean, std=std)])
+            tf = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=mean, std=std)])
             img = tf(img)
             return img
