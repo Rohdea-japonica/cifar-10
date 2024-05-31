@@ -68,7 +68,10 @@ if __name__ == "__main__":
         device = "cpu"
 
     # 获取训练数据集
-    images, labels = getdata("./data", module)
+    if module == "dev":
+        images, labels = getdata("./data", "train")
+    else:
+        images, labels = getdata("./data", module)
     train_dataset = MyDataset(images, labels, "train")
     dev_dataset = MyDataset(images, labels, "dev")
     train_loader = DataLoader(train_dataset, batch_size, drop_last=False)
@@ -114,7 +117,6 @@ if __name__ == "__main__":
             torch.save(state_dict, "./model.pt")
         print("Finished!!!")
 
-    elif module == "dev":
         with torch.no_grad():
             model.eval()  # 进入测试模式
             count = 0
@@ -128,7 +130,7 @@ if __name__ == "__main__":
                         correct += 1
             print(" Accuracy is :", correct / count)
     elif module == "test":
-        labls = []
+        labels = []
         with torch.no_grad():
             model.eval()  # 进入测试模式
             count = 0
@@ -152,7 +154,8 @@ if __name__ == "__main__":
         for i in labels:
             final_label.append(opposite_dict[i])
         # 将id和final_label写入到csv文件中
-        df = pd.DataFrame({"id": image_names,
-                           "label": final_label}
-                          )
+        df = pd.DataFrame({
+            "id": image_names,
+            "label": final_label
+           })
         df.to_csv("testLabels.csv", mode='a', header=True)

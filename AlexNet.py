@@ -7,17 +7,17 @@ class AlexNet(nn.Module):
         super().__init__()
         self.backbone = nn.Sequential(
             # Conv1
-            nn.Conv2d(3, 64, 4, 2, 0),  # size = 200*200*3
+            nn.Conv2d(3, 64, 3, 1, 0),  # size = 32*32*3
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.MaxPool2d(3, 2, 0),  # size = 99*99*64
+            nn.MaxPool2d(2, 1, 0),  # size = 30*30*64
             # Conv2
-            nn.Conv2d(64, 128, 3, 2, 0),  # size = 49*49*64
+            nn.Conv2d(64, 128, 3, 2, 0),  # size = 29*29*64
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.MaxPool2d(2, 1, 0),  # size = 24*24*128
+            nn.MaxPool2d(2, 1, 0),  # size = 14*14*128
             # Conv3
-            nn.Conv2d(128, 256, 3, 2, 0),  # size = 23*23*128
+            nn.Conv2d(128, 256, 3, 1, 0),  # size = 13*13*128
             nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.MaxPool2d(2, 1, 0),  # size = 11*11*256
@@ -46,7 +46,7 @@ class AlexNet(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.5),
             # FC4
-            nn.Linear(2048, 120),
+            nn.Linear(2048, 10),
         )
 
     def forward(self, x):
