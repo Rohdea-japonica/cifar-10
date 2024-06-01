@@ -7,50 +7,39 @@ class AlexNet(nn.Module):
         super().__init__()
         self.backbone = nn.Sequential(
             # Conv1
-            nn.Conv2d(3, 64, 3, 1, 0),  # size = 32*32*3
-            nn.BatchNorm2d(64),
+            nn.Conv2d(3, 32, 3, 1, 1),  # size = 32*32*32
             nn.ReLU(),
-            nn.MaxPool2d(2, 1, 0),  # size = 30*30*64
             # Conv2
-            nn.Conv2d(64, 128, 3, 2, 0),  # size = 29*29*64
-            nn.BatchNorm2d(128),
+            nn.Conv2d(32, 64, 3, 1, 1),  # size = 32*32*64
             nn.ReLU(),
-            nn.MaxPool2d(2, 1, 0),  # size = 14*14*128
+            nn.MaxPool2d(2, 2),  # size = 16*16*64
             # Conv3
-            nn.Conv2d(128, 256, 3, 1, 0),  # size = 13*13*128
-            nn.BatchNorm2d(256),
+            nn.Conv2d(64, 128, 3, 1, 1),  # size = 16*16*128
             nn.ReLU(),
-            nn.MaxPool2d(2, 1, 0),  # size = 11*11*256
             # Conv4
-            nn.Conv2d(256, 512, 2, 1, 0),  # size = 10*10*256
-            nn.BatchNorm2d(512),
+            nn.Conv2d(128, 128, 3, 1, 1),  # size = 16*16*128
             nn.ReLU(),
-            nn.MaxPool2d(2, 1, 0),  # size = 9*9*512
+            nn.MaxPool2d(2, 2),  # size = 8*8*128
             # Conv5
-            nn.Conv2d(512, 512, 2, 1, 0),  # size = 8*8*512
-            nn.BatchNorm2d(512),
+            nn.Conv2d(128, 256, 3, 1, 1),  # size = 8*8*256
             nn.ReLU(),
-            nn.MaxPool2d(2, 1, 0),  # size = 7*7*512  ->  output = 6*6*512
+            # Conv6
+            nn.Conv2d(256, 256, 3, 1, 1),  # size = 8*8*256
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),  # size = 4*4*256
         )
-        self.dense = nn.Sequential(
-            # FC1
-            nn.Linear(18432, 9216),
+        self.classifier = nn.Sequential(
+            nn.Linear(4096, 1024),
             nn.ReLU(),
             nn.Dropout(0.5),
-            # FC2
-            nn.Linear(9216, 4108),
+            nn.Linear(1024, 512),
             nn.ReLU(),
             nn.Dropout(0.5),
-            # FC3
-            nn.Linear(4108, 2048),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            # FC4
-            nn.Linear(2048, 10),
+            nn.Linear(512, 10)
         )
 
     def forward(self, x):
         x = self.backbone(x)
         x = x.view(x.size(0), -1)
-        x = self.dense(x)
+        x = self.classifier(x)
         return x

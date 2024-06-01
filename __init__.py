@@ -41,10 +41,6 @@ def getdata(data_path, module):
             file_path = image_id[i] + ".png"
             labels.append(dictionary[label[i]])
             image_names.append(os.path.join(img_root, file_path))
-        random.seed(2)
-        random.shuffle(image_names)
-        random.seed(2)
-        random.shuffle(labels)
         return image_names, labels
     elif module == "test":
         img_root = os.path.join(data_path, "test")
