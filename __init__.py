@@ -3,10 +3,10 @@ import torch
 import random
 import pandas as pd
 from torch import optim
-
 from AlexNet import AlexNet
 from MyDataset import MyDataset
 from torch.utils.data import DataLoader
+from sklearn.model_selection import train_test_split
 import torch.nn as nn
 
 
@@ -38,7 +38,7 @@ def getdata(data_path, module):
         labels = []
         image_names = []
         for i in range(len(content)):
-            file_path = image_id[i] + ".png"
+            file_path = str(image_id[i]) + ".png"
             labels.append(dictionary[label[i]])
             image_names.append(os.path.join(img_root, file_path))
         return image_names, labels
@@ -50,10 +50,22 @@ def getdata(data_path, module):
         return image_names
 
 
+def shuffle_loader(images, labels, batch_size):
+    random_seed = random.random()
+    random.seed(random_seed)
+    random.shuffle(images)
+    random.seed(random_seed)
+    random.shuffle(labels)
+    print("Shuffle the train_loader!! The random_seed is: ", random_seed)
+    dataset = MyDataset(images, labels, "train")
+    data_loader = DataLoader(dataset, batch_size, drop_last=False)
+    return data_loader
+
+
 if __name__ == "__main__":
     # 一些变量
     device = ""
-    lr = 0.01  # 学习率
+    lr = 0.001  # 学习率
     pre_epoch = 0  # 前一次训练的轮数
     batch_size = 512  # batch中的数据量
     module = input("请输入训练模式：")
@@ -66,53 +78,78 @@ if __name__ == "__main__":
     # 获取训练数据集
     if module == "dev":
         images, labels = getdata("./data", "train")
+    elif module == "test":
+        images = getdata("./data", module)
     else:
         images, labels = getdata("./data", module)
-    train_dataset = MyDataset(images, labels, "train")
-    dev_dataset = MyDataset(images, labels, "dev")
-    train_loader = DataLoader(train_dataset, batch_size, drop_last=False)
-    dev_loader = DataLoader(dev_dataset, batch_size, drop_last=False)
-    # 获取预测数据集
-    test_images = getdata("./data", module)
-    test_dataset = MyDataset(test_images, "", "test")
-    test_loader = DataLoader(test_dataset, batch_size, drop_last=False)
+    if module == "train" or module == "dev":
+        images, labels = getdata("./data", "train")
+        x_train, x_test, y_train, y_test = train_test_split(images, labels, test_size=0.2, train_size=0.8,
+                                                            shuffle=False, random_state=12)
+        train_dataset = MyDataset(x_train, y_train, "train")
+        dev_dataset = MyDataset(x_test, y_test, "dev")
+        train_loader = DataLoader(train_dataset, batch_size, drop_last=False)
+        dev_loader = DataLoader(dev_dataset, batch_size, drop_last=False)
+    elif module == "test":
+        # 获取预测数据集
+        test_images = getdata("./data", module)
+        test_dataset = MyDataset(test_images, "", "test")
+        test_loader = DataLoader(test_dataset, batch_size, drop_last=False)
     # 加载模型
     model = AlexNet().to(device)
     criterion = nn.CrossEntropyLoss()  # 设置误差函数
     params = filter(lambda p: p.requires_grad, model.parameters())  # 设置模型参数跟踪
-    optimizer = optim.Adam(params, lr=lr, weight_decay=1e-4)  # 优化器
+    optimizer = optim.Adam(params, lr=lr)  # 优化器
     try:
         position = torch.load("./model.pt", map_location=device)
         model.load_state_dict(position["model"])
         pre_epoch = position["epoch"]
-        optimizer.load_state_dict(position["optimizer"])
     except FileNotFoundError:
         print("Not download model!")
 
     if module == "train":
-        model.train()  # 进入训练模式
         epochs = int(input("请输入训练轮数："))
         # 开始训练
         for epoch in range(epochs):
             count = 0
             correct = 0
+            model.train()  # 进入训练模式
             for x, y in train_loader:
                 count += len(y)
                 pred = model(x.to(device))
-                optimizer.zero_grad()
                 loss = criterion(pred, y.to(device))
+                optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()  # 参数修改
                 label = pred.argmax(1)
                 for i in range(len(y)):
                     if y[i] == label[i]:
                         correct += 1
-            print("Current epoch is :", epoch + pre_epoch + 1, " Train_Accuracy is :", correct / count)
-            state_dict = {"model": model.state_dict(), "optimizer": optimizer.state_dict(),
-                          "epoch": epoch + 1 + pre_epoch}
+            # 保存模型
+            state_dict = {"model": model.state_dict(), "epoch": epoch + 1 + pre_epoch}
             torch.save(state_dict, "./model.pt")
+            # 验证
+            model.eval()  # 进入测试模式
+            Ycount = 0
+            Ycorrect = 0
+            for x, y in dev_loader:
+                Ycount += len(y)
+                pred = model(x.to(device))
+                label = pred.argmax(1)
+                for i in range(len(y)):
+                    if y[i] == label[i]:
+                        Ycorrect += 1
+            print("Current epoch is :", epoch + pre_epoch + 1, " Train_Accuracy is :", correct / count,
+                  " Dev_Accuracy is :", Ycorrect / Ycount)
+
+            if correct / count > 0.9 or correct / count - Ycorrect / Ycount > 0.2:
+                train_loader = shuffle_loader(x_train, y_train, batch_size)
+            elif Ycorrect / Ycount > 0.85:
+                break;
         print("Finished!!!")
 
+
+    elif module == "dev":
         with torch.no_grad():
             model.eval()  # 进入测试模式
             count = 0
@@ -136,9 +173,9 @@ if __name__ == "__main__":
                 labels += pred.argmax(1).tolist()
         image_names = []
         for root, sub_folder, file_list in os.walk("./data/test"):
-            image_names += [file_path for file_path in file_list]
+            image_names += [file_path.split('.')[0] for file_path in file_list]
         # 构建反映射表
-        dictionary = get_dictionary("./data/labels.csv")
+        dictionary = get_dictionary("./data/trainLabels.csv")
         dict_key = dictionary.keys()
         opposite_dict = {}
         idx = 0
@@ -150,8 +187,11 @@ if __name__ == "__main__":
         for i in labels:
             final_label.append(opposite_dict[i])
         # 将id和final_label写入到csv文件中
-        df = pd.DataFrame({
-            "id": image_names,
-            "label": final_label
-           })
-        df.to_csv("testLabels.csv", mode='a', header=True)
+        df = pd.DataFrame(
+            {
+                "id": image_names,
+                "label": final_label
+            }
+        )
+        df.to_csv("testLabels.csv", mode='w', header=True, index=False)
+        print("Finished!!!")
